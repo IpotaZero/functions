@@ -68,27 +68,4 @@ export class Awaits {
             }),
         )
     }
-
-    static inputFile(extension: string): Promise<File | null> {
-        // 1. ファイルを選択するための隠し input 要素を作成
-        const input = document.createElement("input")
-        input.type = "file"
-        input.accept = extension
-
-        return new Promise<File | null>((resolve) => {
-            // 2. ファイルが選択された時の処理
-            input.onchange = async () => {
-                const file = input.files?.[0]
-                if (!file) {
-                    resolve(null)
-                    return
-                }
-
-                resolve(file)
-            }
-
-            // 3. ファイル選択ダイアログを表示
-            input.click()
-        })
-    }
 }

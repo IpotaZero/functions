@@ -14,5 +14,4 @@ export declare class Awaits {
     }>;
     static waitElementReady(container: Element): Promise<void>;
     static waitCSSLoad(container: Element): Promise<void>;
-    static inputFile(extension: string): Promise<File | null>;
 }
