@@ -47,4 +47,15 @@ export class Awaits {
             });
         }));
     }
+    static *yield(p) {
+        let loaded = false;
+        let result;
+        p.then((r) => {
+            result = r;
+            loaded = true;
+        });
+        while (!loaded)
+            yield;
+        return result;
+    }
 }

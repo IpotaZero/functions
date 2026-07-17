@@ -14,4 +14,5 @@ export declare class Awaits {
     }>;
     static waitElementReady(container: Element): Promise<void>;
     static waitCSSLoad(container: Element): Promise<void>;
+    static yield<T>(p: Promise<T>): Generator<void, T>;
 }
