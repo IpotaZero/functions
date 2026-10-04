@@ -5,17 +5,37 @@ export namespace GenUtils {
      * 全ジェネレータが終了するまで yield し続ける。
      *
      * @example
-     * yield* parallel(
-     *     this.attackA(),
-     *     this.attackB(),
-     * )
+     * yield* parallel({
+     *     attackA: this.attackA(),
+     *     attackB: this.attackB(),
+     * })
      */
-    export function* parallel(...gens: Generator[]): Generator<void, void, unknown> {
-        while (true) {
-            const results = gens.map((g) => g.next())
-            if (results.every((r) => r.done)) break
-            yield
+    export function* all<T, K extends string>(gens: Record<K, Iterable<void>>): Generator<void, Record<K, T>, void> {
+        const keys = Object.keys(gens) as K[]
+        const results = {} as Record<K, T>
+        const activeKeys = new Set(keys)
+        const iterators = {} as Record<K, Iterator<void, T, void>>
+
+        for (const key of keys) {
+            iterators[key] = gens[key][Symbol.iterator]()
         }
+
+        while (activeKeys.size > 0) {
+            for (const key of activeKeys) {
+                const step = iterators[key].next()
+                if (step.done) {
+                    results[key] = step.value
+                    activeKeys.delete(key)
+                }
+            }
+
+            // まだ完了していないジェネレータがある場合は1回 yield して親に制御を戻す
+            if (activeKeys.size > 0) {
+                yield
+            }
+        }
+
+        return results
     }
 
     /**
@@ -25,19 +45,35 @@ export namespace GenUtils {
      *
      * @example
      * // タイムアウトつきの攻撃パターン
-     * const winner = yield* race(
-     *     this.attackPattern(),
-     *     waitFrames(300),   // 300f経ったら強制終了
-     * )
-     * if (winner === 1) {
+     * const result = yield* race({
+     *      attack: attack(),
+     *      timeout: wait(300),
+     * })
+     * if (result.key === "timeout") {
      *     // タイムアウトで終了した場合の処理
      * }
      */
-    export function* race(...gens: Generator[]): Generator<void, number, unknown> {
+    type GeneratorReturn<T> = T extends Iterator<unknown, infer R, unknown> ? R : never
+
+    type RaceResult<T extends Record<string, Iterator<unknown, unknown, unknown>>> = {
+        [K in keyof T]: {
+            key: K
+            value: GeneratorReturn<T[K]>
+        }
+    }[keyof T]
+
+    export function* race<T extends Record<string, IterableIterator<unknown, unknown, unknown>>>(
+        gens: T,
+    ): Generator<void, RaceResult<T>, void> {
+        const G = Object.entries(gens) as [keyof T, T[keyof T]][]
+
         while (true) {
-            const results = gens.map((g) => g.next())
-            const doneIndex = results.findIndex((r) => r.done)
-            if (doneIndex !== -1) return doneIndex
+            for (const [key, g] of G) {
+                const res = g.next()
+                if (res.done) {
+                    return { key, value: res.value } as RaceResult<T>
+                }
+            }
             yield
         }
     }
@@ -46,13 +82,8 @@ export namespace GenUtils {
      * n フレーム待つジェネレータ。
      * parallel / race と組み合わせて使うと便利。
      *
-     * @example
-     * yield* race(
-     *     this.attackPattern(),
-     *     waitFrames(240),
-     * )
      */
-    export function* waitFrames(n: number): Generator<void, void, unknown> {
+    export function* waitFrames(n: number): Generator<void, void, void> {
         yield* Array(n)
     }
 
@@ -64,7 +95,7 @@ export namespace GenUtils {
      */
     export function* repeat(
         n: number,
-        gen: (index: number) => Iterable<void, void, unknown>,
+        gen: (index: number) => IterableIterator<void, unknown, unknown>,
     ): Generator<void, void, unknown> {
         for (let i = 0; i < n; i++) {
             yield* gen(i)
@@ -82,9 +113,27 @@ export namespace GenUtils {
      *     this.phase3(),
      * ])
      */
-    export function* sequence(gens: Generator<void, void, unknown>[]): Generator<void, void, unknown> {
+    export function* sequence(gens: IterableIterator<void, void, unknown>[]): Generator<void, void, unknown> {
         for (const gen of gens) {
             yield* gen
         }
+    }
+
+    export function* waitForPromise<T>(promise: Promise<T>): Generator<void, T, void> {
+        let state: { ok: true; value: T } | { ok: false; error: unknown } | undefined
+
+        promise.then(
+            (value) => {
+                state = { ok: true, value }
+            },
+            (error) => {
+                state = { ok: false, error }
+            },
+        )
+
+        while (state === undefined) yield
+
+        if (!state.ok) throw state.error
+        return state.value
     }
 }
