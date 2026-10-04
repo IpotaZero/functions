@@ -6,41 +6,44 @@ export var GenUtils;
      * 全ジェネレータが終了するまで yield し続ける。
      *
      * @example
-     * yield* parallel(
-     *     this.attackA(),
-     *     this.attackB(),
-     * )
+     * yield* parallel({
+     *     attackA: this.attackA(),
+     *     attackB: this.attackB(),
+     * })
      */
-    function* parallel(...gens) {
-        while (true) {
-            const results = gens.map((g) => g.next());
-            if (results.every((r) => r.done))
-                break;
-            yield;
+    function* all(gens) {
+        const keys = Object.keys(gens);
+        const results = {};
+        const activeKeys = new Set(keys);
+        const iterators = {};
+        for (const key of keys) {
+            iterators[key] = gens[key][Symbol.iterator]();
         }
+        while (activeKeys.size > 0) {
+            for (const key of activeKeys) {
+                const step = iterators[key].next();
+                if (step.done) {
+                    results[key] = step.value;
+                    activeKeys.delete(key);
+                }
+            }
+            // まだ完了していないジェネレータがある場合は1回 yield して親に制御を戻す
+            if (activeKeys.size > 0) {
+                yield;
+            }
+        }
+        return results;
     }
-    GenUtils.parallel = parallel;
-    /**
-     * 複数のジェネレータを同時に進める。
-     * いずれか1つが終了した時点で全体を終了し、
-     * 最初に終了したジェネレータのインデックスを返す。
-     *
-     * @example
-     * // タイムアウトつきの攻撃パターン
-     * const winner = yield* race(
-     *     this.attackPattern(),
-     *     waitFrames(300),   // 300f経ったら強制終了
-     * )
-     * if (winner === 1) {
-     *     // タイムアウトで終了した場合の処理
-     * }
-     */
-    function* race(...gens) {
+    GenUtils.all = all;
+    function* race(gens) {
+        const G = Object.entries(gens);
         while (true) {
-            const results = gens.map((g) => g.next());
-            const doneIndex = results.findIndex((r) => r.done);
-            if (doneIndex !== -1)
-                return doneIndex;
+            for (const [key, g] of G) {
+                const res = g.next();
+                if (res.done) {
+                    return { key, value: res.value };
+                }
+            }
             yield;
         }
     }
@@ -49,11 +52,6 @@ export var GenUtils;
      * n フレーム待つジェネレータ。
      * parallel / race と組み合わせて使うと便利。
      *
-     * @example
-     * yield* race(
-     *     this.attackPattern(),
-     *     waitFrames(240),
-     * )
      */
     function* waitFrames(n) {
         yield* Array(n);
@@ -88,4 +86,18 @@ export var GenUtils;
         }
     }
     GenUtils.sequence = sequence;
+    function* waitForPromise(promise) {
+        let state;
+        promise.then((value) => {
+            state = { ok: true, value };
+        }, (error) => {
+            state = { ok: false, error };
+        });
+        while (state === undefined)
+            yield;
+        if (!state.ok)
+            throw state.error;
+        return state.value;
+    }
+    GenUtils.waitForPromise = waitForPromise;
 })(GenUtils || (GenUtils = {}));

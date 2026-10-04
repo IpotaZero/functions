@@ -5,12 +5,12 @@ export declare namespace GenUtils {
      * 全ジェネレータが終了するまで yield し続ける。
      *
      * @example
-     * yield* parallel(
-     *     this.attackA(),
-     *     this.attackB(),
-     * )
+     * yield* parallel({
+     *     attackA: this.attackA(),
+     *     attackB: this.attackB(),
+     * })
      */
-    function parallel(...gens: Generator[]): Generator<void, void, unknown>;
+    export function all<T, K extends string>(gens: Record<K, Iterable<void>>): Generator<void, Record<K, T>, void>;
     /**
      * 複数のジェネレータを同時に進める。
      * いずれか1つが終了した時点で全体を終了し、
@@ -18,33 +18,35 @@ export declare namespace GenUtils {
      *
      * @example
      * // タイムアウトつきの攻撃パターン
-     * const winner = yield* race(
-     *     this.attackPattern(),
-     *     waitFrames(300),   // 300f経ったら強制終了
-     * )
-     * if (winner === 1) {
+     * const result = yield* race({
+     *      attack: attack(),
+     *      timeout: wait(300),
+     * })
+     * if (result.key === "timeout") {
      *     // タイムアウトで終了した場合の処理
      * }
      */
-    function race(...gens: Generator[]): Generator<void, number, unknown>;
+    type GeneratorReturn<T> = T extends Iterator<unknown, infer R, unknown> ? R : never;
+    type RaceResult<T extends Record<string, Iterator<unknown, unknown, unknown>>> = {
+        [K in keyof T]: {
+            key: K;
+            value: GeneratorReturn<T[K]>;
+        };
+    }[keyof T];
+    export function race<T extends Record<string, IterableIterator<unknown, unknown, unknown>>>(gens: T): Generator<void, RaceResult<T>, void>;
     /**
      * n フレーム待つジェネレータ。
      * parallel / race と組み合わせて使うと便利。
      *
-     * @example
-     * yield* race(
-     *     this.attackPattern(),
-     *     waitFrames(240),
-     * )
      */
-    function waitFrames(n: number): Generator<void, void, unknown>;
+    export function waitFrames(n: number): Generator<void, void, void>;
     /**
      * ジェネレータを n 回繰り返す。
      *
      * @example
      * yield* repeat(3, () => this.attackPattern())
      */
-    function repeat(n: number, gen: (index: number) => Iterable<void, void, unknown>): Generator<void, void, unknown>;
+    export function repeat(n: number, gen: (index: number) => IterableIterator<void, unknown, unknown>): Generator<void, void, unknown>;
     /**
      * ジェネレータのリストを順番に実行する。
      * 配列で渡せるので、動的にパターンを組み立てるときに便利。
@@ -56,5 +58,7 @@ export declare namespace GenUtils {
      *     this.phase3(),
      * ])
      */
-    function sequence(gens: Generator<void, void, unknown>[]): Generator<void, void, unknown>;
+    export function sequence(gens: IterableIterator<void, void, unknown>[]): Generator<void, void, unknown>;
+    export function waitForPromise<T>(promise: Promise<T>): Generator<void, T, void>;
+    export {};
 }
