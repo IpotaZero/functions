@@ -138,7 +138,7 @@ export namespace GenUtils {
     }
 
     /**自然数を吐き出し続ける */
-    export function* naturalNumbers() {
+    export function* naturalNumbers(): Generator<number, never, void> {
         for (let i = 0; ; i++) {
             yield i
         }

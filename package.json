@@ -15,6 +15,7 @@
     ],
     "scripts": {
         "build": "tsc",
+        "first": "npm version patch && npm publish --access public",
         "patch": "npm version patch && npm publish",
         "minor": "npm version minor && npm publish"
     },
