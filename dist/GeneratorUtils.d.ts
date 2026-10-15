@@ -60,5 +60,7 @@ export declare namespace GenUtils {
      */
     export function sequence(gens: IterableIterator<void, void, unknown>[]): Generator<void, void, unknown>;
     export function waitForPromise<T>(promise: Promise<T>): Generator<void, T, void>;
+    /**自然数を吐き出し続ける */
+    export function naturalNumbers(): Generator<number, void, unknown>;
     export {};
 }

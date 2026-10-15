@@ -15,7 +15,8 @@
     ],
     "scripts": {
         "build": "tsc",
-        "update": "npm version patch && npm publish"
+        "patch": "npm version patch && npm publish",
+        "minor": "npm version minor && npm publish"
     },
     "devDependencies": {
         "typescript": "^5.8.0"

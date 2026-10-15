@@ -100,4 +100,11 @@ export var GenUtils;
         return state.value;
     }
     GenUtils.waitForPromise = waitForPromise;
+    /**自然数を吐き出し続ける */
+    function* naturalNumbers() {
+        for (let i = 0;; i++) {
+            yield i;
+        }
+    }
+    GenUtils.naturalNumbers = naturalNumbers;
 })(GenUtils || (GenUtils = {}));

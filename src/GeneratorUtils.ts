@@ -136,4 +136,11 @@ export namespace GenUtils {
         if (!state.ok) throw state.error
         return state.value
     }
+
+    /**自然数を吐き出し続ける */
+    export function* naturalNumbers() {
+        for (let i = 0; ; i++) {
+            yield i
+        }
+    }
 }
